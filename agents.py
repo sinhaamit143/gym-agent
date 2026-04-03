@@ -8,20 +8,18 @@ from dotenv import load_dotenv
 load_dotenv()  # This loads variables from .env
 import os
 
-API_KEY = os.getenv("GROQ_API_KEY")
-
 # ==========================================
 # SUPER LLM GATEWAY (Toggle switch for Local vs Production)
+# Set USE_CLOUD_LLM=true in Render env vars to use Groq
 # ==========================================
-USE_CLOUD_LLM = True
+USE_CLOUD_LLM = os.getenv("USE_CLOUD_LLM", "false").lower() == "true"
 
 if USE_CLOUD_LLM:
     from langchain_groq import ChatGroq
-    # It will read specifically from Render's config dashboard ideally, but defaults instantly to your provided token!
     API_KEY = os.getenv("GROQ_API_KEY")
     if not API_KEY:
         raise ValueError("GROQ_API_KEY environment variable is not set!")
-    llm = ChatGroq(model="llama3-8b-8192", api_key=API_KEY)
+    llm = ChatGroq(model="groq/compound-mini", api_key=API_KEY)
 else:
     from langchain_ollama import ChatOllama
     llm = ChatOllama(model="minimax-m2:cloud")
