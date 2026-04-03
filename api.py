@@ -22,11 +22,18 @@ from psycopg_pool import ConnectionPool
 from langgraph.checkpoint.postgres import PostgresSaver
 
 DB_USER = "postgres"
-DB_PASS = urllib.parse.quote_plus("admin@123$$%") # Safe URL encoding
-DB_HOST = "db.rydduxnckmfpdxjinfvl.supabase.co"
-DB_PORT = "5432"
+DB_PASS = urllib.parse.quote_plus("admin@123$$%")  # Safe URL encoding
+
+# Use env variable if set (Render dashboard), otherwise fall back to Supabase session pooler (IPv4-compatible)
+# The direct host (db.xxx.supabase.co) resolves to IPv6 which Render can't reach.
+# The pooler host (aws-0-*.pooler.supabase.com) is always IPv4: grab it from Supabase dashboard > Settings > Database > Session Mode
+_POOLER_HOST = "aws-0-ap-southeast-1.pooler.supabase.com"
+_POOLER_PORT = "5432"
 DB_NAME = "postgres"
-DB_URI = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}?sslmode=require"
+DB_URI = os.getenv(
+    "DATABASE_URL",
+    f"postgresql://{DB_USER}.rydduxnckmfpdxjinfvl:{DB_PASS}@{_POOLER_HOST}:{_POOLER_PORT}/{DB_NAME}?sslmode=require"
+)
 
 # Global connection pool
 pool = None
