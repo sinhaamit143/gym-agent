@@ -7,3 +7,4 @@ langchain-core
 fastapi
 uvicorn
 pydantic
+python-dotenv
