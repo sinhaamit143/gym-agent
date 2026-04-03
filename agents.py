@@ -21,7 +21,7 @@ if USE_CLOUD_LLM:
     API_KEY = os.getenv("GROQ_API_KEY")
     if not API_KEY:
         raise ValueError("GROQ_API_KEY environment variable is not set!")
-    llm = ChatGroq(model="llama3-8b-8192", api_key=API_KEY)
+    llm = ChatGroq(model="openai/gpt-oss-120b", api_key=API_KEY)
 else:
     from langchain_ollama import ChatOllama
     llm = ChatOllama(model="minimax-m2:cloud")

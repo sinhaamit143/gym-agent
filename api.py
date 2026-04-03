@@ -21,19 +21,18 @@ if sys.platform == "win32" and sys.version_info >= (3, 8):
 from psycopg_pool import ConnectionPool
 from langgraph.checkpoint.postgres import PostgresSaver
 
-DB_USER = "postgres"
-DB_PASS = urllib.parse.quote_plus("admin@123$$%")  # Safe URL encoding
+# Connection parameters — using make_conninfo to safely handle special chars in password
+from psycopg.conninfo import make_conninfo
 
-# Use env variable if set (Render dashboard), otherwise fall back to Supabase session pooler (IPv4-compatible)
-# The direct host (db.xxx.supabase.co) resolves to IPv6 which Render can't reach.
-# The pooler host (aws-0-*.pooler.supabase.com) is always IPv4: grab it from Supabase dashboard > Settings > Database > Session Mode
-_POOLER_HOST = "aws-0-ap-southeast-1.pooler.supabase.com"
-_POOLER_PORT = "5432"
-DB_NAME = "postgres"
-DB_URI = os.getenv(
-    "DATABASE_URL",
-    f"postgresql://{DB_USER}.rydduxnckmfpdxjinfvl:{DB_PASS}@{_POOLER_HOST}:{_POOLER_PORT}/{DB_NAME}?sslmode=require"
+_DEFAULT_CONNINFO = make_conninfo(
+    host="db.rydduxnckmfpdxjinfvl.supabase.co",
+    port=5432,
+    dbname="postgres",
+    user="postgres",
+    password="admin@123$$%",
+    sslmode="require"
 )
+DB_CONNINFO = os.getenv("DATABASE_URL", _DEFAULT_CONNINFO)
 
 # Global connection pool
 pool = None
@@ -41,19 +40,29 @@ pool = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global pool
-    pool = ConnectionPool(
-        conninfo=DB_URI,
-        max_size=20,
-        kwargs={"autocommit": True, "prepare_threshold": 0}
-    )
-    
-    # Ensure checkpointer schema is created 
-    with pool.connection() as conn:
-        saver = PostgresSaver(conn)
-        saver.setup()
+    try:
+        pool = ConnectionPool(
+            conninfo=DB_CONNINFO,
+            max_size=10,
+            open=False,
+            kwargs={"autocommit": True, "prepare_threshold": 0}
+        )
+        pool.open(wait=True, timeout=15)
+        
+        # Ensure checkpointer schema is created 
+        with pool.connection() as conn:
+            saver = PostgresSaver(conn)
+            saver.setup()
+        print("✅ Database connected and checkpointer ready.")
+    except Exception as e:
+        print(f"⚠️  Database connection failed: {e}")
+        print("⚠️  Continuing without DB — chat history will not persist.")
+        pool = None
     
     yield
-    pool.close()
+    
+    if pool:
+        pool.close()
 
 app = FastAPI(title="AI Gym Automation API", description="LangGraph Supabase Gym System", lifespan=lifespan)
 
